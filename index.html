@@ -68,6 +68,22 @@
         #panel-body {
             padding: 15px;
         }
+        .audio-btn {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 12px;
+            background: #ffcc00;
+            color: #111;
+            border: none;
+            border-radius: 4px;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .audio-btn:hover {
+            background: #e6b800;
+        }
         .control-group {
             margin-bottom: 12px;
         }
@@ -89,7 +105,7 @@
             font-size: 13px;
         }
         .control-group textarea {
-            height: 80px;
+            height: 70px;
             resize: vertical;
         }
         .control-row {
@@ -107,6 +123,21 @@
             background: none;
             border-radius: 4px;
         }
+        .credits-info {
+            font-size: 11px;
+            color: #aaa;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #444;
+            line-height: 1.4;
+        }
+        .credits-info a {
+            color: #87ceeb;
+            text-decoration: none;
+        }
+        .credits-info a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -116,10 +147,13 @@
     <!-- 可收合控制面板 -->
     <div id="control-panel">
         <div id="panel-header" onclick="togglePanel()">
-            <span>📢 遠處廣告看板設定面板</span>
+            <span>📢 遠處廣告看板與控制面板</span>
             <span id="toggle-icon">▲</span>
         </div>
         <div id="panel-body">
+            <!-- 音效開關按鈕 -->
+            <button id="audioToggle" class="audio-btn" onclick="toggleAudio()">🔊 開啟鐵道行駛音效</button>
+
             <div class="control-group">
                 <label>廣告訊息 (不限行數，一行一個看板內容):</label>
                 <textarea id="adText" oninput="updateAllBillboards()">𓃥 白六台鐵火車頭&#10;歡迎搭乘台灣鐵路觀光列車&#10;下一站：美好假期&#10;沿途欣賞美麗風景&#10;祝福旅程平安順心</textarea>
@@ -160,6 +194,11 @@
                     <input type="color" id="adBgColor" value="#0055aa" onchange="updateAllBillboards()">
                 </div>
             </div>
+
+            <!-- 車頭 3D 模型來源聲明 -->
+            <div class="credits-info">
+                🚆 <a href="https://skfb.ly/o8FGq" target="_blank">"Taiwan Railway GE E400 / Interior"</a> by Basic Hsu is licensed under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>.
+            </div>
         </div>
     </div>
 
@@ -198,6 +237,38 @@
         const trackSpeed = 0.15; 
         const BILLBOARD_SPACING = 80;
 
+        // -------------------------------------------------------------
+        // MP3 音效控制
+        // -------------------------------------------------------------
+        const trainAudio = new Audio('kokoreli777-a-train-on-the-railways-169416.mp3');
+        trainAudio.loop = true; // 循環播放
+        let isAudioPlaying = false;
+
+        function toggleAudio() {
+            const btn = document.getElementById('audioToggle');
+
+            if (!isAudioPlaying) {
+                trainAudio.play().then(() => {
+                    isAudioPlaying = true;
+                    btn.innerText = "🔇 關閉鐵道音效";
+                    btn.style.background = "#ff5555";
+                    btn.style.color = "#fff";
+                }).catch(err => {
+                    console.error("音訊播放失敗，請檢查檔案路徑：", err);
+                    alert("無法載入或播放音訊檔案 kokoreli777-a-train-on-the-railways-169416.mp3，請確認檔案位置。");
+                });
+            } else {
+                trainAudio.pause();
+                isAudioPlaying = false;
+                btn.innerText = "🔊 開啟鐵道行駛音效";
+                btn.style.background = "#ffcc00";
+                btn.style.color = "#111";
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Three.js 主邏輯
+        // -------------------------------------------------------------
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
@@ -285,20 +356,18 @@
             window.addEventListener('resize', onWindowResize);
         }
 
-        // 🛠️【修改重點】兩側都有機會出現小木屋（左右各 50% 機率）
+        // 兩側都有機會出現小木屋
         function addContainersToTracks() {
             if (!containerTemplate) return;
 
-            // 固定頻率：挑選 2 個指定區段位置
             const targetIndices = [-8, 6];
 
             targetIndices.forEach((segI) => {
-                const trackIdx = segI + 12; // 轉為陣列索引 (0~24)
+                const trackIdx = segI + 12; 
                 if (trackSegments[trackIdx]) {
                     const house = containerTemplate.clone();
                     house.scale.set(0.8, 0.8, 0.8);
                     
-                    // 50% 機率在鐵路左側，50% 機率在鐵路右側（近處，不影響遠處 X=25 的看板）
                     const isLeft = Math.random() > 0.5;
                     const xPos = isLeft ? (-6 - Math.random() * 2) : (6 + Math.random() * 2);
                     
@@ -497,9 +566,11 @@
                 }
             });
 
+            // 3. 火車頭上下微幅震動浮動
             if (trainModel) {
                 trainModel.position.y = Math.sin(Date.now() * 0.015) * 0.015;
             }
+
             controls.update();
             renderer.render(scene, camera);
         }
