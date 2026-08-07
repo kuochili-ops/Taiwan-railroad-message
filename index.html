@@ -111,7 +111,7 @@
 </head>
 <body>
     <div id="info">💡 𓃥 白六台鐵火車頭 | 單指旋轉 | 雙指縮放與平移</div>
-    <div id="loading">載入台鐵 GE E400 3D 模型中，請稍候...</div>
+    <div id="loading">載入 3D 模型與地景中，請稍候...</div>
 
     <!-- 可收合控制面板 -->
     <div id="control-panel">
@@ -190,14 +190,12 @@
             trackHeight: 0.21     
         };
 
-        let scene, camera, renderer, trainModel, controls;
+        let scene, camera, renderer, trainModel, containerTemplate, controls;
         let trackSegments = [];
         let billboardItems = [];
-        let nextTextIndex = 0; // 全域對齊輪播索引
+        let nextTextIndex = 0; 
 
-        // 車速預設 0.15
         const trackSpeed = 0.15; 
-        // 兩座看板之間的安全距離（80 單位，確保視覺上絕不同時出現兩座看板）
         const BILLBOARD_SPACING = 80;
 
         function init() {
@@ -243,11 +241,13 @@
             // 建立無縫鐵軌
             createTracks();
 
-            // 建立獨立看板流動池（建立 2 個看板交替進行超長距離循環）
+            // 建立超長距離獨立看板池
             initBillboardPool();
 
-            // 載入模型
+            // GLTF 載入器
             const loader = new THREE.GLTFLoader();
+
+            // 1. 載入火車頭模型
             loader.load(
                 'taiwan_railway_ge_e400__interior.glb',
                 function (gltf) {
@@ -259,8 +259,21 @@
                 },
                 undefined,
                 function (error) {
-                    console.error('模型載入失敗：', error);
-                    document.getElementById('loading').innerText = '模型載入失敗！請確認檔名與伺服器環境。';
+                    console.error('火車模型載入失敗：', error);
+                    document.getElementById('loading').innerText = '火車模型載入失敗！請確認檔名與伺服器環境。';
+                }
+            );
+
+            // 2. 載入小木屋/貨櫃模型 (storagecontainer_lowpoly.glb)
+            loader.load(
+                'storagecontainer_lowpoly.glb',
+                function (gltf) {
+                    containerTemplate = gltf.scene;
+                    addContainersToTracks();
+                },
+                undefined,
+                function (error) {
+                    console.warn('小木屋模型載入失敗或未發現，使用預設風景。', error);
                 }
             );
 
@@ -270,6 +283,31 @@
             });
 
             window.addEventListener('resize', onWindowResize);
+        }
+
+        // 🛠️【修改重點】兩側都有機會出現小木屋（左右各 50% 機率）
+        function addContainersToTracks() {
+            if (!containerTemplate) return;
+
+            // 固定頻率：挑選 2 個指定區段位置
+            const targetIndices = [-8, 6];
+
+            targetIndices.forEach((segI) => {
+                const trackIdx = segI + 12; // 轉為陣列索引 (0~24)
+                if (trackSegments[trackIdx]) {
+                    const house = containerTemplate.clone();
+                    house.scale.set(0.8, 0.8, 0.8);
+                    
+                    // 50% 機率在鐵路左側，50% 機率在鐵路右側（近處，不影響遠處 X=25 的看板）
+                    const isLeft = Math.random() > 0.5;
+                    const xPos = isLeft ? (-6 - Math.random() * 2) : (6 + Math.random() * 2);
+                    
+                    house.position.set(xPos, 0, 0);
+                    house.rotation.y = Math.random() * Math.PI * 2;
+                    
+                    trackSegments[trackIdx].add(house);
+                }
+            });
         }
 
         // 解析多行文字
@@ -373,7 +411,7 @@
                 billboardGroup.add(brace);
             });
 
-            // 朝向鐵路，右側 25 單位
+            // 朝向鐵路，擺在遠處右側 X = 25
             billboardGroup.rotation.y = -Math.PI / 2;
 
             return {
@@ -423,12 +461,11 @@
             }
         }
 
-        // 初始化超長距離獨立看板池
+        // 初始化獨立看板池
         function initBillboardPool() {
             for (let k = 0; k < 2; k++) {
                 const item = createBillboardMesh();
                 
-                // 起始點：第一個看板在前方 Z = -30 處，第二個在更遠處 Z = -110 處
                 const initialZ = -30 - (k * BILLBOARD_SPACING);
                 item.group.position.set(25, 0, initialZ);
                 
@@ -442,7 +479,7 @@
             requestAnimationFrame(animate);
             const totalSpan = 25 * 4.0;
             
-            // 1. 鐵道循環流動
+            // 1. 鐵道與鐵道物件流動
             trackSegments.forEach(segment => {
                 segment.position.z += trackSpeed; 
                 if (segment.position.z > 12 * 4.0) {
@@ -450,11 +487,10 @@
                 }
             });
 
-            // 2. 看板獨立遠距離循環移動
+            // 2. 看板流動
             billboardItems.forEach(item => {
                 item.group.position.z += trackSpeed;
 
-                // 當看板遠遠離開鏡頭（到 Z > 60 處）時，將其移至最深處 (Z = -100)，並指派下一行訊息
                 if (item.group.position.z > 60) {
                     item.group.position.z -= (BILLBOARD_SPACING * 2);
                     assignTextToBillboard(item, nextTextIndex++);
