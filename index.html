@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>𓃥 白六台鐵火車頭</title>
+    <!-- 引入 Google Fonts 中文字型 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&family=Noto+Serif+TC:wght@700&family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #87ceeb;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+        }
+        #info {
+            position: absolute;
+            top: 15px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 15px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            z-index: 20;
+        }
+
+        /* 可收合設定面板樣式 */
+        #control-panel {
+            position: absolute;
+            top: 55px;
+            right: 15px;
+            width: 290px;
+            background: rgba(0, 0, 0, 0.85);
+            border-radius: 8px;
+            color: white;
+            z-index: 30;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+        #panel-header {
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        #panel-body {
+            padding: 15px;
+        }
+        .control-group {
+            margin-bottom: 12px;
+        }
+        .control-group label {
+            display: block;
+            font-size: 12px;
+            margin-bottom: 4px;
+            color: #ffcc00;
+        }
+        .control-group textarea,
+        .control-group select {
+            width: 100%;
+            padding: 6px;
+            box-sizing: border-box;
+            background: #222;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .control-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        .control-row {
+            display: flex;
+            gap: 10px;
+        }
+        .control-row .control-group {
+            flex: 1;
+        }
+        .control-group input[type="color"] {
+            width: 100%;
+            height: 32px;
+            border: none;
+            cursor: pointer;
+            background: none;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">💡 𓃥 白六台鐵火車頭 | 單指旋轉 | 雙指縮放與平移</div>
+    <div id="loading">載入台鐵 GE E400 3D 模型中，請稍候...</div>
+
+    <!-- 可收合控制面板 -->
+    <div id="control-panel">
+        <div id="panel-header" onclick="togglePanel()">
+            <span>📢 遠處廣告看板設定面板</span>
+            <span id="toggle-icon">▲</span>
+        </div>
+        <div id="panel-body">
+            <div class="control-group">
+                <label>廣告訊息 (不限行數，一行一個看板內容):</label>
+                <textarea id="adText" oninput="updateAllBillboards()">𓃥 白六台鐵火車頭&#10;歡迎搭乘台灣鐵路觀光列車&#10;下一站：美好假期&#10;沿途欣賞美麗風景&#10;祝福旅程平安順心</textarea>
+            </div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>字型選擇 (含 Google 字型):</label>
+                    <select id="adFont" onchange="updateAllBillboards()">
+                        <optgroup label="Google 免費中文字型">
+                            <option value="'Noto Sans TC', sans-serif" selected>思源黑體 (Noto Sans)</option>
+                            <option value="'Noto Serif TC', serif">思源宋體 (Noto Serif)</option>
+                            <option value="'Zen Maru Gothic', sans-serif">jf open 粉圓體</option>
+                        </optgroup>
+                        <optgroup label="系統預設字型">
+                            <option value="Microsoft JhengHei, sans-serif">微軟正黑體</option>
+                            <option value="SimSun, serif">新細明體</option>
+                            <option value="Arial, sans-serif">Arial</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>字體大小:</label>
+                    <select id="adFontSize" onchange="updateAllBillboards()">
+                        <option value="36">小</option>
+                        <option value="54" selected>中</option>
+                        <option value="72">大</option>
+                        <option value="96">特大</option>
+                    </select>
+                </div>
+            </div>
+            <div class="control-row">
+                <div class="control-group">
+                    <label>文字顏色:</label>
+                    <input type="color" id="adTextColor" value="#ffffff" onchange="updateAllBillboards()">
+                </div>
+                <div class="control-group">
+                    <label>看板底色:</label>
+                    <input type="color" id="adBgColor" value="#0055aa" onchange="updateAllBillboards()">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Three.js 核心及外掛元件 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        // 控制面板收合切換功能
+        let isPanelOpen = true;
+        function togglePanel() {
+            isPanelOpen = !isPanelOpen;
+            const body = document.getElementById('panel-body');
+            const icon = document.getElementById('toggle-icon');
+            if (isPanelOpen) {
+                body.style.display = 'block';
+                icon.innerText = '▲';
+            } else {
+                body.style.display = 'none';
+                icon.innerText = '▼';
+            }
+        }
+
+        // 參數設定預設值
+        const CONFIG = {
+            railGauge: 0.47,      
+            trackHeight: 0.21     
+        };
+
+        let scene, camera, renderer, trainModel, controls;
+        let trackSegments = [];
+        let billboardItems = [];
+        let nextTextIndex = 0; // 全域對齊輪播索引
+
+        // 車速預設 0.15
+        const trackSpeed = 0.15; 
+        // 兩座看板之間的安全距離（80 單位，確保視覺上絕不同時出現兩座看板）
+        const BILLBOARD_SPACING = 80;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb);
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.012);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 3, 8);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 1, 0);
+            controls.maxPolarAngle = Math.PI / 2 - 0.03;
+            controls.minDistance = 2;
+            controls.maxDistance = 60;
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            dirLight.position.set(15, 25, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            const fillLight = new THREE.DirectionalLight(0x7799bb, 0.4);
+            fillLight.position.set(-15, 10, -10);
+            scene.add(fillLight);
+
+            // 地面草地
+            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3b5e3b });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.06;
+            scene.add(ground);
+
+            // 建立無縫鐵軌
+            createTracks();
+
+            // 建立獨立看板流動池（建立 2 個看板交替進行超長距離循環）
+            initBillboardPool();
+
+            // 載入模型
+            const loader = new THREE.GLTFLoader();
+            loader.load(
+                'taiwan_railway_ge_e400__interior.glb',
+                function (gltf) {
+                    trainModel = gltf.scene;
+                    trainModel.scale.set(1, 1, 1);
+                    trainModel.position.set(0, 0, 0);
+                    scene.add(trainModel);
+                    document.getElementById('loading').style.display = 'none';
+                },
+                undefined,
+                function (error) {
+                    console.error('模型載入失敗：', error);
+                    document.getElementById('loading').innerText = '模型載入失敗！請確認檔名與伺服器環境。';
+                }
+            );
+
+            // 確保 Google Fonts 載入完成後繪製所有看板
+            document.fonts.ready.then(() => {
+                updateAllBillboards();
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // 解析多行文字
+        function getParsedTextLines() {
+            const rawText = document.getElementById('adText').value;
+            const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            return lines.length > 0 ? lines : [" "];
+        }
+
+        // 繪製單一看板 Canvas
+        function renderBillboardCanvas(canvas, lineText) {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            const fontName = document.getElementById('adFont').value;
+            const fontSize = document.getElementById('adFontSize').value;
+            const textColor = document.getElementById('adTextColor').value;
+            const bgColor = document.getElementById('adBgColor').value;
+
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = textColor;
+            ctx.font = `bold ${fontSize}px ${fontName}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(lineText, canvas.width / 2, canvas.height / 2);
+        }
+
+        function assignTextToBillboard(item, seqIndex = null) {
+            const lines = getParsedTextLines();
+            if (seqIndex !== null) {
+                item.seqIndex = seqIndex;
+            }
+            const lineIndex = item.seqIndex % lines.length;
+            const textToDraw = lines[lineIndex];
+
+            renderBillboardCanvas(item.canvas, textToDraw);
+            item.texture.needsUpdate = true;
+        }
+
+        function updateAllBillboards() {
+            billboardItems.forEach(item => {
+                assignTextToBillboard(item);
+            });
+        }
+
+        function createBillboardMesh() {
+            const billboardGroup = new THREE.Group();
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 1024;
+            canvas.height = 256;
+            const texture = new THREE.CanvasTexture(canvas);
+
+            // 廣告主面板
+            const boardGeo = new THREE.BoxGeometry(20, 5, 0.2);
+            const boardMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.3 });
+            const board = new THREE.Mesh(boardGeo, boardMat);
+            board.position.set(0, 2.5, 0);
+            billboardGroup.add(board);
+
+            // 廣告金屬外框
+            const frameGeo = new THREE.BoxGeometry(20.4, 5.4, 0.1);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            frame.position.set(0, 2.5, -0.15);
+            billboardGroup.add(frame);
+
+            // 兩側垂直主支柱
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.7, roughness: 0.3 });
+            const mainPoleGeo = new THREE.CylinderGeometry(0.2, 0.2, 5, 16);
+            
+            const poleLeft = new THREE.Mesh(mainPoleGeo, poleMat);
+            poleLeft.position.set(-8, 2.5, -0.15);
+            billboardGroup.add(poleLeft);
+
+            const poleRight = new THREE.Mesh(mainPoleGeo, poleMat);
+            poleRight.position.set(8, 2.5, -0.15);
+            billboardGroup.add(poleRight);
+
+            // 三根背面斜撐鐵架
+            const braceXPositions = [-6, 0, 6]; 
+            braceXPositions.forEach(xPos => {
+                const startPoint = new THREE.Vector3(xPos, 3.8, -0.15);
+                const endPoint = new THREE.Vector3(xPos, 0.0, -2.8);
+
+                const distance = startPoint.distanceTo(endPoint);
+                const midPoint = new THREE.Vector3().addVectors(startPoint, endPoint).multiplyScalar(0.5);
+
+                const braceGeo = new THREE.CylinderGeometry(0.12, 0.12, distance, 16);
+                const brace = new THREE.Mesh(braceGeo, poleMat);
+
+                brace.position.copy(midPoint);
+
+                const direction = new THREE.Vector3().subVectors(endPoint, startPoint).normalize();
+                const orientation = new THREE.Quaternion();
+                orientation.setFromUnitVectors(new THREE.Vector3(0, -1, 0), direction);
+                brace.quaternion.copy(orientation);
+
+                billboardGroup.add(brace);
+            });
+
+            // 朝向鐵路，右側 25 單位
+            billboardGroup.rotation.y = -Math.PI / 2;
+
+            return {
+                group: billboardGroup,
+                canvas: canvas,
+                texture: texture,
+                seqIndex: 0
+            };
+        }
+
+        function createTracks() {
+            const segmentLength = 4.0;
+            const railMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9, roughness: 0.1 });
+            const sleeperMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.8, metalness: 0.1 });
+            const ballastMat = new THREE.MeshStandardMaterial({ color: 0x7a7a7a, roughness: 0.9, flatShading: true });
+
+            for (let i = -12; i <= 12; i++) {
+                const trackSegment = new THREE.Group();
+
+                // 道床
+                const ballastGeo = new THREE.BoxGeometry(2.4, 0.2, segmentLength);
+                const ballast = new THREE.Mesh(ballastGeo, ballastMat);
+                ballast.position.set(0, -0.05, 0);
+                trackSegment.add(ballast);
+
+                // 枕木
+                for (let j = -segmentLength / 2 + 0.25; j <= segmentLength / 2; j += 0.65) {
+                    const sleeperGeo = new THREE.BoxGeometry(2.2, 0.12, 0.4);
+                    const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
+                    sleeper.position.set(0, 0.06, j);
+                    trackSegment.add(sleeper);
+                }
+
+                // 雙軌
+                const railGeo = new THREE.BoxGeometry(0.08, 0.1, segmentLength);
+                const railL = new THREE.Mesh(railGeo, railMat);
+                railL.position.set(CONFIG.railGauge, 0.16, 0);
+                trackSegment.add(railL);
+
+                const railR = railL.clone();
+                railR.position.x = -CONFIG.railGauge;
+                trackSegment.add(railR);
+
+                trackSegment.position.set(0, CONFIG.trackHeight, i * segmentLength);
+                scene.add(trackSegment);
+                trackSegments.push(trackSegment);
+            }
+        }
+
+        // 初始化超長距離獨立看板池
+        function initBillboardPool() {
+            for (let k = 0; k < 2; k++) {
+                const item = createBillboardMesh();
+                
+                // 起始點：第一個看板在前方 Z = -30 處，第二個在更遠處 Z = -110 處
+                const initialZ = -30 - (k * BILLBOARD_SPACING);
+                item.group.position.set(25, 0, initialZ);
+                
+                assignTextToBillboard(item, nextTextIndex++);
+                scene.add(item.group);
+                billboardItems.push(item);
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const totalSpan = 25 * 4.0;
+            
+            // 1. 鐵道循環流動
+            trackSegments.forEach(segment => {
+                segment.position.z += trackSpeed; 
+                if (segment.position.z > 12 * 4.0) {
+                    segment.position.z -= totalSpan; 
+                }
+            });
+
+            // 2. 看板獨立遠距離循環移動
+            billboardItems.forEach(item => {
+                item.group.position.z += trackSpeed;
+
+                // 當看板遠遠離開鏡頭（到 Z > 60 處）時，將其移至最深處 (Z = -100)，並指派下一行訊息
+                if (item.group.position.z > 60) {
+                    item.group.position.z -= (BILLBOARD_SPACING * 2);
+                    assignTextToBillboard(item, nextTextIndex++);
+                }
+            });
+
+            if (trainModel) {
+                trainModel.position.y = Math.sin(Date.now() * 0.015) * 0.015;
+            }
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
