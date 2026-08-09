@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>𓃥 白六台鐵火車頭 - 火車模型微幅調低版</title>
+    <!-- 引入 Google Fonts 中文字型 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&family=Noto+Serif+TC:wght@700&family=Zen+Maru+Gothic:wght@700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: Arial, sans-serif; touch-action: none; }
+        #info { position: absolute; top: 15px; width: 100%; text-align: center; color: white; font-size: 15px; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 10; }
+        #loading { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 22px; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.8); z-index: 20; text-align: center; }
+        #control-panel { position: absolute; top: 55px; right: 15px; width: 310px; background: rgba(0, 0, 0, 0.85); border-radius: 8px; color: white; z-index: 30; box-shadow: 0 4px 10px rgba(0,0,0,0.4); overflow: hidden; transition: max-height 0.3s ease; }
+        #panel-header { padding: 10px 15px; background: rgba(255, 255, 255, 0.15); cursor: pointer; display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: bold; }
+        #panel-body { padding: 15px; display: none; }
+        .audio-btn { width: 100%; padding: 8px; margin-bottom: 12px; background: #ffcc00; color: #111; border: none; border-radius: 4px; font-weight: bold; font-size: 13px; cursor: pointer; transition: background 0.2s; }
+        .audio-btn:hover { background: #e6b800; }
+        .control-group { margin-bottom: 12px; }
+        .control-group label { display: block; font-size: 12px; margin-bottom: 4px; color: #ffcc00; }
+        .control-group textarea, .control-group select, .control-group input[type="range"] { width: 100%; padding: 6px; box-sizing: border-box; background: #222; color: white; border: 1px solid #555; border-radius: 4px; font-size: 13px; }
+        .control-group textarea { height: 60px; resize: vertical; }
+        .control-row { display: flex; gap: 8px; }
+        .control-row .control-group { flex: 1; }
+        .control-group input[type="color"] { width: 100%; height: 32px; border: none; cursor: pointer; background: none; border-radius: 4px; }
+        .credits-info { font-size: 11px; color: #aaa; margin-top: 10px; padding-top: 8px; border-top: 1px solid #444; line-height: 1.4; }
+        .credits-info a { color: #87ceeb; text-decoration: none; }
+        .credits-info a:hover { text-decoration: underline; }
+        
+        #scene-status {
+            position: absolute; bottom: 20px; left: 20px; color: lime; font-size: 16px; font-family: monospace; 
+            background: rgba(0,0,0,0.6); padding: 5px 10px; border-radius: 4px; pointer-events: none; z-index: 50; 
+        }
+    </style>
+</head>
+<body>
+    <div id="info">💡 𓃥 白六台鐵火車頭 | 模型高度微幅下修沉降版</div>
+    <div id="loading">載入 3D 模型與建立場景中，請稍候...</div>
+    <div id="scene-status">初始化中...</div>
+
+    <div id="control-panel">
+        <div id="panel-header" onclick="togglePanel()"><span>📢 廣告與音效控制面板</span><span id="toggle-icon">▼</span></div>
+        <div id="panel-body">
+            <button id="audioToggle" class="audio-btn" onclick="toggleAudio()">🔊 開啟鐵道行駛音效</button>
+            <div class="control-group">
+                <label>廣告訊息 (一行一個看板內容):</label>
+                <textarea id="adText" oninput="rebuildSceneOnTextChange()">𓃥 白六台鐵火車頭&#10;鯉魚潭美麗紅色鐵橋&#10;歡迎搭乘台灣鐵路觀光列車&#10;祝福旅程平安順心</textarea>
+            </div>
+            
+            <div class="control-group">
+                <label>看板字體大小: <span id="fontSizeDisplay" style="color:#fff;">100px</span></label>
+                <input type="range" id="adFontSize" min="60" max="160" value="100" oninput="updateFontSizeLabel(); updateAllBillboards();">
+            </div>
+
+            <div class="control-row">
+                <div class="control-group">
+                    <label>字型選擇:</label>
+                    <select id="adFont" onchange="updateAllBillboards()">
+                        <optgroup label="Google Fonts">
+                            <option value="'Noto Sans TC', sans-serif" selected>思源黑體 (Noto Sans)</option>
+                            <option value="'Noto Serif TC', serif">思源宋體 (Noto Serif)</option>
+                            <option value="'Zen Maru Gothic', sans-serif">jf open 粉圓體</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>字色:</label>
+                    <input type="color" id="adTextColor" value="#ffffff" onchange="updateAllBillboards()">
+                </div>
+                <div class="control-group">
+                    <label>底色:</label>
+                    <input type="color" id="adBgColor" value="#0055aa" onchange="updateAllBillboards()">
+                </div>
+            </div>
+            <div class="credits-info">
+                🚆 <a href="https://skfb.ly/o8FGq" target="_blank">GE E400</a> by Basic Hsu under <a href="http://creativecommons.org/licenses/by/4.0/" target="_blank">CC BY 4.0</a>.
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入 Three.js 核心及外掛 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <script>
+        let isPanelOpen = false;
+        function togglePanel() {
+            isPanelOpen = !isPanelOpen;
+            const body = document.getElementById('panel-body');
+            const icon = document.getElementById('toggle-icon');
+            body.style.display = isPanelOpen ? 'block' : 'none';
+            icon.innerText = isPanelOpen ? '▲' : '▼';
+        }
+
+        function updateFontSizeLabel() {
+            const val = document.getElementById('adFontSize').value;
+            document.getElementById('fontSizeDisplay').innerText = val + 'px';
+        }
+
+        const CONFIG = {
+            railGauge: 0.47,      
+            trackHeight: 0.28, 
+            trackSpeed: 0.16, 
+            valleyDepth: 35,
+            valleyWidthSegments: 26
+        };
+
+        const SCENE_STATE = {
+            TUNNEL_IN: '車頭出洞跟拍 (平行 Zoom Out 中)',
+            BRIDGE_HOLDOUT: '到達橋中央 ➔ 停止跟拍 (目送火車離開)',
+            PLAIN: '進入平原模式 (看板展示)',
+            TUNNEL_OUT: '火車進入隧道 ➔ 1秒切換起始畫面',
+            RESTART_BLACK: '畫面重置中 (1秒)'
+        };
+
+        let scene, camera, renderer, trainModel, containerTemplate, controls, ambientLight, dirLight, sceneGroup;
+        let scriptManager;
+        let billboardItems = [];
+
+        const trainAudio = new Audio('kokoreli777-a-train-on-the-railways-169416.mp3');
+        trainAudio.loop = true; 
+        let isAudioPlaying = false;
+
+        function toggleAudio() {
+            const btn = document.getElementById('audioToggle');
+            if (!isAudioPlaying) {
+                trainAudio.play().then(() => {
+                    isAudioPlaying = true;
+                    btn.innerText = "🔇 關閉鐵道音效";
+                    btn.style.background = "#ff5555";
+                    btn.style.color = "#fff";
+                }).catch(err => alert("音訊播放失敗，請確認檔案路徑與瀏覽器授權。"));
+            } else {
+                trainAudio.pause();
+                isAudioPlaying = false;
+                btn.innerText = "🔊 開啟鐵道行駛音效";
+                btn.style.background = "#ffcc00";
+                btn.style.color = "#111";
+            }
+        }
+
+        function getParsedTextLines() {
+            const rawText = document.getElementById('adText').value;
+            const lines = rawText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            return lines.length > 0 ? lines : [" "];
+        }
+
+        function renderBillboardCanvas(canvas, lineText) {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            const fontName = document.getElementById('adFont').value;
+            const bgColor = document.getElementById('adBgColor').value;
+            const textColor = document.getElementById('adTextColor').value;
+            const fontSize = document.getElementById('adFontSize').value;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = bgColor;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = textColor;
+            ctx.font = `bold ${fontSize}px ${fontName}`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(lineText, canvas.width / 2, canvas.height / 2);
+        }
+
+        function assignTextToBillboard(item, text) {
+            renderBillboardCanvas(item.canvas, text);
+            item.texture.needsUpdate = true;
+        }
+
+        function updateAllBillboards() {
+            if (scriptManager) {
+                scriptManager.billboardTrackers.forEach(tracker => {
+                    assignTextToBillboard(tracker.item, tracker.text);
+                });
+            }
+        }
+
+        function rebuildSceneOnTextChange() {
+            if (scriptManager) {
+                scriptManager.buildScenePath();
+                updateAllBillboards();
+            }
+        }
+
+        function createBillboardMesh() {
+            const billboardGroup = new THREE.Group();
+            const canvas = document.createElement('canvas');
+            canvas.width = 2048; 
+            canvas.height = 512;
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            if (renderer) {
+                texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            }
+
+            const boardGeo = new THREE.BoxGeometry(20, 5, 0.2);
+            const boardMat = new THREE.MeshStandardMaterial({ map: texture, roughness: 0.3 });
+            const board = new THREE.Mesh(boardGeo, boardMat);
+            board.position.set(0, 2.5, 0);
+            billboardGroup.add(board);
+
+            const frameGeo = new THREE.BoxGeometry(20.4, 5.4, 0.1);
+            const frameMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8 });
+            const frame = new THREE.Mesh(frameGeo, frameMat);
+            frame.position.set(0, 2.5, -0.15);
+            billboardGroup.add(frame);
+
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.7 });
+            const poleLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 5, 16), poleMat);
+            poleLeft.position.set(-8, 2.5, -0.15);
+            billboardGroup.add(poleLeft);
+
+            const poleRight = poleLeft.clone();
+            poleRight.position.x = 8;
+            billboardGroup.add(poleRight);
+
+            billboardGroup.rotation.y = -Math.PI / 2;
+
+            const bbItem = { group: billboardGroup, canvas: canvas, texture: texture };
+            billboardItems.push(bbItem);
+            return bbItem;
+        }
+
+        function createFallbackTrain() {
+            const trainGroup = new THREE.Group();
+            const bodyGeo = new THREE.BoxGeometry(2.2, 2.5, 8);
+            const bodyMat = new THREE.MeshStandardMaterial({ color: 0xcc3300, metalness: 0.5 });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.position.set(0, 1.5, 0);
+            trainGroup.add(body);
+            return trainGroup;
+        }
+
+        class ScriptManager {
+            constructor() {
+                this.currentState = SCENE_STATE.TUNNEL_IN;
+                this.trainZ = 0; 
+                this.pathConfig = { segmentLength: 4.0, tunnelInSegments: 8, bridgeValleySegments: CONFIG.valleyWidthSegments, tunnelOutSegments: 10 };
+                this.pathBoundaries = { bridgeStart: 0, bridgeMid: 0, plainStart: 0, tunnelOutStart: 0 };
+                this.billboardTrackers = [];
+                this.holdoutCameraZ = 0;
+            }
+
+            buildScenePath() {
+                while(sceneGroup.children.length > 0){ 
+                    sceneGroup.remove(sceneGroup.children[0]); 
+                }
+                this.billboardTrackers = [];
+                billboardItems = [];
+
+                const segLen = this.pathConfig.segmentLength;
+                let currentZ = segLen * 2;
+                
+                // 1. 起點山洞與自然山體
+                this.pathBoundaries.bridgeStart = currentZ + this.pathConfig.tunnelInSegments * segLen;
+                this.createTunnelSegments(this.pathConfig.tunnelInSegments, currentZ, true);
+                currentZ = this.pathBoundaries.bridgeStart;
+
+                // 2. 鯉魚潭拱橋段
+                const bridgeLen = this.pathConfig.bridgeValleySegments * segLen;
+                this.pathBoundaries.bridgeMid = currentZ + bridgeLen / 2;
+                this.pathBoundaries.plainStart = currentZ + bridgeLen;
+                this.createValleyBridgeSegments(this.pathConfig.bridgeValleySegments, currentZ);
+                currentZ = this.pathBoundaries.plainStart;
+
+                // 3. 平原段與看板展示
+                const lines = getParsedTextLines();
+                const billboardSpacingSegments = 12; 
+                const plainSegmentsCount = (lines.length + 1) * billboardSpacingSegments + 10;
+
+                this.pathBoundaries.tunnelOutStart = currentZ + plainSegmentsCount * segLen;
+                this.createPlainSegments(plainSegmentsCount, currentZ, lines, billboardSpacingSegments);
+                currentZ = this.pathBoundaries.tunnelOutStart;
+
+                // 4. 終點山洞與自然山體
+                this.createTunnelSegments(this.pathConfig.tunnelOutSegments, currentZ, false);
+                currentZ += this.pathConfig.tunnelOutSegments * segLen;
+
+                this.totalPathLength = currentZ;
+
+                if (containerTemplate) {
+                    this.populateSceneryWithObjects();
+                }
+            }
+
+            createTracksAt(group, z) {
+                const railMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.9 });
+                const railGeo = new THREE.BoxGeometry(0.08, 0.1, this.pathConfig.segmentLength);
+                const railL = new THREE.Mesh(railGeo, railMat);
+                railL.position.set(CONFIG.railGauge, CONFIG.trackHeight, z);
+                group.add(railL);
+                const railR = railL.clone();
+                railR.position.x = -CONFIG.railGauge;
+                group.add(railR);
+
+                const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+                for (let j = -this.pathConfig.segmentLength/2 + 0.25; j <= this.pathConfig.segmentLength/2; j += 0.65) {
+                    const sleeperGeo = new THREE.BoxGeometry(2.2, 0.12, 0.4);
+                    const sleeper = new THREE.Mesh(sleeperGeo, sleeperMat);
+                    sleeper.position.set(0, CONFIG.trackHeight - 0.08, z + j);
+                    group.add(sleeper);
+                }
+            }
+
+            createTunnelPortal(group, portalZ, isStartTunnel) {
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+                const darkInsideMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+
+                const portalGroup = new THREE.Group();
+                portalGroup.position.set(0, CONFIG.trackHeight, portalZ);
+
+                const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(6, 8, 1.5), wallMat);
+                wallLeft.position.set(-5, 4, 0);
+                portalGroup.add(wallLeft);
+
+                const wallRight = new THREE.Mesh(new THREE.BoxGeometry(6, 8, 1.5), wallMat);
+                wallRight.position.set(5, 4, 0);
+                portalGroup.add(wallRight);
+
+                const wallTop = new THREE.Mesh(new THREE.BoxGeometry(16, 4, 1.5), wallMat);
+                wallTop.position.set(0, 8, 0);
+                portalGroup.add(wallTop);
+
+                const tunnelTubeGeo = new THREE.CylinderGeometry(3.5, 3.5, 20, 16, 1, true, 0, Math.PI);
+                const tunnelTube = new THREE.Mesh(tunnelTubeGeo, darkInsideMat);
+                tunnelTube.rotation.x = Math.PI / 2;
+                tunnelTube.rotation.z = Math.PI;
+                tunnelTube.position.set(0, 0, isStartTunnel ? -10 : 10);
+                portalGroup.add(tunnelTube);
+
+                const backDropGeo = new THREE.PlaneGeometry(10, 10);
+                const backDrop = new THREE.Mesh(backDropGeo, darkInsideMat);
+                backDrop.position.set(0, 3, isStartTunnel ? -18 : 18);
+                if (!isStartTunnel) backDrop.rotation.y = Math.PI;
+                portalGroup.add(backDrop);
+
+                group.add(portalGroup);
+            }
+
+            createTunnelSegments(count, startZ, isStartTunnel) {
+                const segLen = this.pathConfig.segmentLength;
+                const group = new THREE.Group();
+                sceneGroup.add(group);
+                
+                const rockCliffMat = new THREE.MeshStandardMaterial({ color: 0x3d352e, roughness: 0.9, flatShading: true });
+                const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8, flatShading: true });
+
+                for (let i = 0; i < count; i++) {
+                    const z = startZ + i * segLen;
+                    this.createTracksAt(group, z);
+
+                    const rockGeo = new THREE.TorusGeometry(10, 6, 10, 16, Math.PI);
+                    const rock = new THREE.Mesh(rockGeo, rockCliffMat);
+                    rock.rotation.y = Math.PI / 2;
+                    rock.position.set(0, 0, z);
+                    group.add(rock);
+
+                    const cliffGeo = new THREE.ConeGeometry(35, CONFIG.valleyDepth + 15, 7);
+                    const cliff = new THREE.Mesh(cliffGeo, rockCliffMat);
+                    cliff.position.set(-15, -(CONFIG.valleyDepth + 15) / 2 + CONFIG.trackHeight, z);
+                    cliff.rotation.z = Math.PI; 
+                    group.add(cliff);
+
+                    const topGreenGeo = new THREE.DodecahedronGeometry(8 + (i % 3));
+                    const topGreen = new THREE.Mesh(topGreenGeo, foliageMat);
+                    topGreen.position.set(-12, CONFIG.trackHeight + 6, z + (i % 2));
+                    group.add(topGreen);
+                }
+
+                const portalZ = isStartTunnel ? (startZ + count * segLen - segLen) : startZ;
+                this.createTunnelPortal(group, portalZ, isStartTunnel);
+            }
+
+            createValleyBridgeSegments(count, startZ) {
+                const segLen = this.pathConfig.segmentLength;
+                const group = new THREE.Group();
+                sceneGroup.add(group);
+                
+                const redArchMat = new THREE.MeshStandardMaterial({ color: 0xd62828, metalness: 0.6, roughness: 0.2 });
+                const concreteMat = new THREE.MeshStandardMaterial({ color: 0xdcdcdc, roughness: 0.7 });
+                const poleMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8 });
+                const foliageMat = new THREE.MeshStandardMaterial({ color: 0x2d5a27, roughness: 0.8 });
+                const flowerMat = new THREE.MeshStandardMaterial({ color: 0xffdb00, roughness: 0.6 });
+
+                const bridgeTotalLength = count * segLen;
+
+                for (let i = 0; i < count; i++) {
+                    const z = startZ + i * segLen;
+                    this.createTracksAt(group, z);
+
+                    const boxBridgeGeo = new THREE.BoxGeometry(4.2, 1.8, segLen);
+                    const boxBridge = new THREE.Mesh(boxBridgeGeo, concreteMat);
+                    boxBridge.position.set(0, CONFIG.trackHeight - 0.9, z);
+                    group.add(boxBridge);
+
+                    if (i % 3 === 0) {
+                        const poleGeo = new THREE.CylinderGeometry(0.1, 0.1, 4.5, 8);
+                        const poleL = new THREE.Mesh(poleGeo, poleMat);
+                        poleL.position.set(-2.0, CONFIG.trackHeight + 2.2, z);
+                        group.add(poleL);
+
+                        const armGeo = new THREE.BoxGeometry(2.2, 0.08, 0.08);
+                        const arm = new THREE.Mesh(armGeo, poleMat);
+                        arm.position.set(-1.0, CONFIG.trackHeight + 4.0, z);
+                        group.add(arm);
+                    }
+                }
+
+                const span = bridgeTotalLength;
+                const archRise = 18; 
+                const pointsCount = 40;
+                
+                const archPoints = [];
+                for (let step = 0; step <= pointsCount; step++) {
+                    const t = step / pointsCount;
+                    const z = startZ + t * span;
+                    const normZ = (t - 0.5) * 2; 
+                    const y = (CONFIG.trackHeight - 2.2) - (normZ * normZ) * archRise;
+                    archPoints.push(new THREE.Vector3(0, y, z));
+                }
+
+                const archCurve = new THREE.CatmullRomCurve3(archPoints);
+                const tubeGeo = new THREE.TubeGeometry(archCurve, 64, 0.6, 12, false);
+                const redArchMesh = new THREE.Mesh(tubeGeo, redArchMat);
+                
+                redArchMesh.position.x = -1.2;
+                group.add(redArchMesh);
+                const redArchRight = redArchMesh.clone();
+                redArchRight.position.x = 1.2;
+                group.add(redArchRight);
+
+                for (let step = 2; step < count - 2; step += 2) {
+                    const zCol = startZ + step * segLen;
+                    const normZ = ((step / count) - 0.5) * 2;
+                    const yArch = (CONFIG.trackHeight - 2.2) - (normZ * normZ) * archRise;
+                    const colHeight = (CONFIG.trackHeight - 1.8) - yArch;
+
+                    if (colHeight > 0.4) {
+                        const colGeo = new THREE.CylinderGeometry(0.25, 0.25, colHeight, 10);
+                        
+                        const colL = new THREE.Mesh(colGeo, redArchMat);
+                        colL.position.set(-1.2, yArch + colHeight / 2, zCol);
+                        group.add(colL);
+
+                        const colR = colL.clone();
+                        colR.position.x = 1.2;
+                        group.add(colR);
+                    }
+                }
+
+                for (let zPos = startZ - 10; zPos < startZ + bridgeTotalLength + 10; zPos += 8) {
+                    const treeGeo = new THREE.DodecahedronGeometry(3.5 + Math.random() * 2);
+                    const tree = new THREE.Mesh(treeGeo, foliageMat);
+                    tree.position.set(12 + Math.random() * 8, -CONFIG.valleyDepth + 8, zPos);
+                    group.add(tree);
+
+                    for (let f = 0; f < 3; f++) {
+                        const flowerGeo = new THREE.SphereGeometry(0.8 + Math.random() * 0.6, 8, 8);
+                        const flower = new THREE.Mesh(flowerGeo, flowerMat);
+                        flower.position.set(5 + Math.random() * 5, -CONFIG.valleyDepth + 4 + Math.random(), zPos + (Math.random() - 0.5) * 6);
+                        group.add(flower);
+                    }
+                }
+            }
+
+            createPlainSegments(count, startZ, lines, spacing) {
+                const segLen = this.pathConfig.segmentLength;
+                const group = new THREE.Group();
+                sceneGroup.add(group);
+                
+                const ballastMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+                const plainGrassMat = new THREE.MeshStandardMaterial({ color: 0x3b5e3b, roughness: 0.9 });
+
+                let lineIndex = 0;
+                const billboardStartOffsetSegments = 8;
+
+                for (let i = 0; i < count; i++) {
+                    const z = startZ + i * segLen;
+                    this.createTracksAt(group, z);
+
+                    const ballastGeo = new THREE.BoxGeometry(2.4, 0.2, segLen);
+                    const ballast = new THREE.Mesh(ballastGeo, ballastMat);
+                    ballast.position.set(0, -0.05 + CONFIG.trackHeight - 0.1, z);
+                    group.add(ballast);
+
+                    const plainGroundGeo = new THREE.BoxGeometry(100, 2, segLen);
+                    const plainGround = new THREE.Mesh(plainGroundGeo, plainGrassMat);
+                    plainGround.position.set(0, CONFIG.trackHeight - 1.1, z);
+                    group.add(plainGround);
+
+                    if (i >= billboardStartOffsetSegments && (i - billboardStartOffsetSegments) % spacing === 0 && lineIndex < lines.length) {
+                        const bbItem = createBillboardMesh();
+                        bbItem.group.position.set(25, 0, z);
+                        group.add(bbItem.group);
+                        
+                        const text = lines[lineIndex];
+                        assignTextToBillboard(bbItem, text);
+                        
+                        this.billboardTrackers.push({ item: bbItem, originalZ: z, text: text });
+                        lineIndex++;
+                    }
+                }
+            }
+
+            populateSceneryWithObjects() {
+                if (!containerTemplate) return;
+                this.billboardTrackers.forEach((tracker, idx) => {
+                    const house = containerTemplate.clone();
+                    house.scale.set(0.8, 0.8, 0.8);
+                    const isLeft = idx % 2 === 0;
+                    house.position.set(isLeft ? -7 : 7, 0, tracker.originalZ + 12);
+                    sceneGroup.add(house);
+                });
+            }
+
+            startScript() {
+                this.currentState = SCENE_STATE.TUNNEL_IN;
+                this.trainZ = this.pathBoundaries.bridgeStart - 6; 
+                // 🛠️ 火車高度調降至 -0.08，讓車輪踏實沉入軌道，完美覆蓋舊鐵軌
+                if (trainModel) {
+                    trainModel.position.set(0, -0.08, this.trainZ); 
+                }
+
+                sceneGroup.position.z = 0;
+                
+                document.getElementById('scene-status').innerText = SCENE_STATE.TUNNEL_IN;
+                scene.background = new THREE.Color(0x00aaff);
+                ambientLight.intensity = 0.8;
+                dirLight.intensity = 1.0;
+                
+                controls.enabled = false;
+            }
+
+            update() {
+                this.trainZ += CONFIG.trackSpeed;
+                if (trainModel) {
+                    trainModel.position.z = this.trainZ;
+                }
+
+                const currentTrainZ = this.trainZ;
+                const bridgeStart = this.pathBoundaries.bridgeStart;
+                const bridgeMid = this.pathBoundaries.bridgeMid;
+                const plainStart = this.pathBoundaries.plainStart;
+
+                switch (this.currentState) {
+                    case SCENE_STATE.TUNNEL_IN:
+                        if (currentTrainZ < bridgeMid) {
+                            const startOffsetZ = bridgeStart - 6;
+                            const progress = Math.min(Math.max(0, currentTrainZ - startOffsetZ) / (bridgeMid - startOffsetZ), 1.0);
+                            
+                            const currentDistX = THREE.MathUtils.lerp(25, 90, progress);
+                            const currentHeightY = THREE.MathUtils.lerp(2.5, -1, progress);
+
+                            camera.position.set(currentDistX, currentHeightY, currentTrainZ);
+                            camera.lookAt(0, -2, currentTrainZ);
+                        } else {
+                            this.currentState = SCENE_STATE.BRIDGE_HOLDOUT;
+                            document.getElementById('scene-status').innerText = SCENE_STATE.BRIDGE_HOLDOUT;
+                            this.holdoutCameraZ = bridgeMid;
+                        }
+                        break;
+
+                    case SCENE_STATE.BRIDGE_HOLDOUT:
+                        camera.position.set(90, -1, this.holdoutCameraZ);
+                        camera.lookAt(0, -2, this.holdoutCameraZ);
+
+                        if (currentTrainZ >= plainStart + 22) {
+                            this.currentState = SCENE_STATE.PLAIN;
+                            document.getElementById('scene-status').innerText = SCENE_STATE.PLAIN;
+                            scene.background = new THREE.Color(0x87ceeb);
+                            
+                            controls.enabled = true;
+                            camera.position.set(18, 10, currentTrainZ + 20);
+                            controls.target.set(0, 1, currentTrainZ);
+                        }
+                        break;
+
+                    case SCENE_STATE.PLAIN:
+                        if (controls.enabled) {
+                            controls.target.z = currentTrainZ;
+                            camera.position.z += CONFIG.trackSpeed;
+                        }
+
+                        if (currentTrainZ >= this.pathBoundaries.tunnelOutStart + 2) {
+                            this.currentState = SCENE_STATE.TUNNEL_OUT;
+                            document.getElementById('scene-status').innerText = SCENE_STATE.TUNNEL_OUT;
+                            controls.enabled = false;
+                        }
+                        break;
+
+                    case SCENE_STATE.TUNNEL_OUT:
+                        ambientLight.intensity = THREE.MathUtils.lerp(ambientLight.intensity, 0.0, 0.2);
+                        scene.background.lerp(new THREE.Color(0x000000), 0.2);
+                        
+                        this.currentState = SCENE_STATE.RESTART_BLACK;
+                        document.getElementById('scene-status').innerText = SCENE_STATE.RESTART_BLACK;
+                        
+                        if (isAudioPlaying) trainAudio.pause();
+                        
+                        setTimeout(() => {
+                            this.startScript();
+                            if (isAudioPlaying) trainAudio.play();
+                        }, 1000);
+                        break;
+                }
+            }
+        }
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x00aaff);
+            scene.fog = new THREE.FogExp2(0x00aaff, 0.003);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            sceneGroup = new THREE.Group();
+            scene.add(sceneGroup);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight.position.set(15, 25, 10);
+            scene.add(dirLight);
+
+            const groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            const groundMat = new THREE.MeshStandardMaterial({ color: 0x3b5e3b });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -CONFIG.valleyDepth - 0.1;
+            scene.add(ground);
+
+            scriptManager = new ScriptManager();
+
+            const loader = new THREE.GLTFLoader();
+
+            loader.load(
+                'taiwan_railway_ge_e400__interior.glb',
+                function (gltf) {
+                    trainModel = gltf.scene;
+                    trainModel.position.set(0, -0.08, 0);
+                    scene.add(trainModel);
+                    document.getElementById('loading').style.display = 'none';
+                    scriptManager.buildScenePath();
+                    scriptManager.startScript();
+                },
+                undefined,
+                function (err) {
+                    console.warn("未發現 `.glb` 模型檔，使用備用列車繼續運行。");
+                    trainModel = createFallbackTrain();
+                    scene.add(trainModel);
+                    document.getElementById('loading').style.display = 'none';
+                    scriptManager.buildScenePath();
+                    scriptManager.startScript();
+                }
+            );
+
+            loader.load(
+                'storagecontainer_lowpoly.glb',
+                function (gltf) {
+                    containerTemplate = gltf.scene;
+                    scriptManager.populateSceneryWithObjects();
+                }
+            );
+
+            document.fonts.ready.then(() => {
+                updateAllBillboards();
+            });
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (scriptManager && scriptManager.currentState !== SCENE_STATE.RESTART_BLACK) {
+                scriptManager.update();
+            }
+
+            if (trainModel) {
+                trainModel.position.y = -0.08 + Math.sin(Date.now() * 0.015) * 0.01;
+            }
+
+            if (controls.enabled) controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
